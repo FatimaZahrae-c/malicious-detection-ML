@@ -58,18 +58,45 @@ for feat in selected_features:
     inputs[feat] = st.number_input(feat, value=0.0)
 
 if st.button("Prédire"):
-    # Build a full 69-column row, filling unused features with 0.0
     full_row = {f: 0.0 for f in all_features}
     for f, v in inputs.items():
         full_row[f] = v
-
     X_full = pd.DataFrame([full_row], columns=all_features)
-
-    # Scale all 69, then select the 20 the model expects
     X_scaled_full = scaler.transform(X_full)
-    X_scaled_df = pd.DataFrame(X_scaled_full, columns=all_features)
+    X_scaled_df   = pd.DataFrame(
+        X_scaled_full, columns=all_features
+    )
     X_selected = X_scaled_df[selected_features].values
-
-    pred = model.predict(X_selected)[0]
+    pred  = model.predict(X_selected)[0]
     label = encoder.inverse_transform([pred])[0]
-    st.success(f"Prédiction : **{label}**")
+    proba = model.predict_proba(X_selected)[0]
+    conf  = round(float(np.max(proba)) * 100, 1)
+
+    if label == "BENIGN":
+        st.markdown(f"""
+        <div style="background:linear-gradient(135deg,#002d0a,#001a05);
+                    border-left:4px solid #00cc44;
+                    border-radius:6px; padding:16px;
+                    color:#44ff88; font-size:1.1rem;
+                    font-weight:600;">
+            ✅ TRAFIC NORMAL — BENIGN<br>
+            <span style="font-size:0.85rem;
+                         color:#7fb3d3;">
+                Confiance : {conf}%
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown(f"""
+        <div style="background:linear-gradient(135deg,#2d0a0a,#1a0505);
+                    border-left:4px solid #ff3333;
+                    border-radius:6px; padding:16px;
+                    color:#ff4444; font-size:1.1rem;
+                    font-weight:600;">
+            🔴 ATTAQUE DÉTECTÉE : {label}<br>
+            <span style="font-size:0.85rem;
+                         color:#ffaaaa;">
+                Confiance : {conf}%
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
