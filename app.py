@@ -45,10 +45,7 @@ def load_model():
     encoder = joblib.load("models/label_encoder.pkl")
     with open("models/selected_features.json") as f:
         selected = json.load(f)
-    if hasattr(scaler, "feature_names_in_"):
-        all_feat = list(scaler.feature_names_in_)
-    else:
-        all_feat = selected
+    all_feat = list(scaler.feature_names_in_)
     return model, scaler, encoder, selected, all_feat
 
 
@@ -56,15 +53,17 @@ model, scaler, encoder, selected, all_feat = load_model()
 
 st.title("🛡️ Malicious Traffic Detection - IDS")
 st.markdown(
-    f"Modèle entraîné sur **{len(selected)}** features "
-    f"(sur {len(all_feat)} au total) | "
-    f"Dataset : CICIDS2017 | F1 = 0.9824"
+    f"Modèle : **Random Forest** | "
+    f"Features : **{len(selected)}** | "
+    f"Dataset : **CICIDS2017** | "
+    f"F1 = **0.9824**"
 )
 
 with st.expander("Voir la liste des features utilisées"):
     st.write(selected)
 
 st.subheader("Prédiction manuelle")
+st.info("Entrez les valeurs brutes (non normalisées) de la connexion réseau")
 
 inputs = {}
 col1, col2 = st.columns(2)
@@ -75,18 +74,20 @@ for i, feat in enumerate(selected):
             feat, value=0.0, format="%.2f"
         )
 
-if st.button("🔍 Prédire", use_container_width=True):
+if st.button("🔍 Prédire"):
 
-    # Construire la ligne complète (69 features)
+    # Construire ligne complète 69 features
     full_row = {f: 0.0 for f in all_feat}
     for f, v in inputs.items():
         full_row[f] = v
 
-    # Scaler → sélectionner les 20 features
-    X_full      = pd.DataFrame([full_row], columns=all_feat)
-    X_scaled    = scaler.transform(X_full)
+    # Scaler sur 69 features
+    X_df     = pd.DataFrame([full_row], columns=all_feat)
+    X_scaled = scaler.transform(X_df)
     X_scaled_df = pd.DataFrame(X_scaled, columns=all_feat)
-    X_sel       = X_scaled_df[selected].values
+
+    # Sélectionner les 20 features
+    X_sel = X_scaled_df[selected].values
 
     # Prédiction
     pred  = model.predict(X_sel)[0]
@@ -112,21 +113,21 @@ if st.button("🔍 Prédire", use_container_width=True):
             </span>
         </div>""", unsafe_allow_html=True)
 
-    # Top 5 probabilités
+    # Top 5 probabilités — CORRIGÉ
     st.markdown("---")
     st.subheader("Top 5 probabilités")
 
-    rf_classes = encoder.inverse_transform(model.classes_)
-    n = min(len(rf_classes), len(proba))
+    # model.classes_ contient les indices encodés
+    # encoder.inverse_transform les convertit en noms
+    class_labels = encoder.inverse_transform(
+        model.classes_
+    )
+
     proba_df = pd.DataFrame({
-        'Classe'      : rf_classes[:n],
-        'Probabilité' : np.round(proba[:n], 4)
+        'Classe'      : class_labels,
+        'Probabilité' : np.round(proba, 4)
     }).sort_values(
         'Probabilité', ascending=False
-    ).head(5)
+    ).head(5).reset_index(drop=True)
 
-    st.dataframe(
-        proba_df,
-        use_container_width=True,
-        hide_index=True
-    )
+    st.dataframe(proba_df, hide_index=True)
