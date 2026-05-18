@@ -39,9 +39,6 @@ h2, h3 { color: #7fb3d3 !important; }
 """, unsafe_allow_html=True)
 
 
-# ─────────────────────────────────────────────────────────────
-# Load model artifacts
-# ─────────────────────────────────────────────────────────────
 @st.cache_resource
 def load_model():
     model    = joblib.load("models/random_forest.pkl")
@@ -56,132 +53,105 @@ def load_model():
 model, scaler, encoder, selected, all_feat = load_model()
 
 
-# ─────────────────────────────────────────────────────────────
-# Preset attack signatures (from CICIDS2017 dataset)
+# Presets derived from medians of the actual TRAINING data
+# (inverse-transformed from scaled X_train, not raw CSVs)
 PRESETS = {
     "— Manuel (tout à zéro) —": {f: 0.0 for f in selected},
 
     "PortScan": {
-        'Flow Duration': 48.00,
-        'Total Length of Fwd Packets': 2.00,
-        'Bwd Packet Length Max': 6.00,
-        'Bwd Packet Length Mean': 6.00,
-        'Bwd Packet Length Std': 0.00,
-        'Flow IAT Std': 0.00,
-        'Flow IAT Max': 48.00,
-        'Fwd IAT Total': 0.00,
-        'Fwd IAT Std': 0.00,
-        'Fwd IAT Max': 0.00,
-        'Max Packet Length': 6.00,
-        'Packet Length Mean': 3.33,
+        'Flow Duration': 50.0,
+        'Total Length of Fwd Packets': 0.0,
+        'Bwd Packet Length Max': 6.0,
+        'Bwd Packet Length Mean': 6.0,
+        'Bwd Packet Length Std': 0.0,
+        'Flow IAT Std': 0.0,
+        'Flow IAT Max': 50.0,
+        'Fwd IAT Total': 0.0,
+        'Fwd IAT Std': 0.0,
+        'Fwd IAT Max': 0.0,
+        'Max Packet Length': 6.0,
+        'Packet Length Mean': 2.40,
         'Packet Length Std': 2.31,
         'Packet Length Variance': 5.33,
-        'FIN Flag Count': 0.00,
-        'Average Packet Size': 5.00,
-        'Avg Bwd Segment Size': 6.00,
-        'Idle Mean': 0.00,
-        'Idle Max': 0.00,
-        'Idle Min': 0.00,
-    },  # 78,614 rows used
+        'FIN Flag Count': 0.0,
+        'Average Packet Size': 3.0,
+        'Avg Bwd Segment Size': 6.0,
+        'Idle Mean': 0.0,
+        'Idle Max': 0.0,
+        'Idle Min': 0.0,
+    },
 
     "FTP-Patator": {
-        'Flow Duration': 6527390.50,
-        'Total Length of Fwd Packets': 69.00,
-        'Bwd Packet Length Max': 34.00,
+        'Flow Duration': 8695781.0,
+        'Total Length of Fwd Packets': 102.0,
+        'Bwd Packet Length Max': 34.0,
         'Bwd Packet Length Mean': 12.53,
         'Bwd Packet Length Std': 14.55,
-        'Flow IAT Std': 869828.86,
-        'Flow IAT Max': 2661635.50,
-        'Fwd IAT Total': 4661544.00,
-        'Fwd IAT Std': 1119557.11,
-        'Fwd IAT Max': 2502473.50,
-        'Max Packet Length': 34.00,
-        'Packet Length Mean': 10.58,
-        'Packet Length Std': 12.23,
-        'Packet Length Variance': 149.61,
-        'FIN Flag Count': 0.00,
-        'Average Packet Size': 12.17,
+        'Flow IAT Std': 980766.88,
+        'Flow IAT Max': 3108757.50,
+        'Fwd IAT Total': 5731094.0,
+        'Fwd IAT Std': 1320630.75,
+        'Fwd IAT Max': 3035823.50,
+        'Max Packet Length': 34.0,
+        'Packet Length Mean': 11.60,
+        'Packet Length Std': 12.52,
+        'Packet Length Variance': 156.82,
+        'FIN Flag Count': 0.0,
+        'Average Packet Size': 12.12,
         'Avg Bwd Segment Size': 12.53,
-        'Idle Mean': 0.00,
-        'Idle Max': 0.00,
-        'Idle Min': 0.00,
-    },  # 7,920 rows used
-
-    "SSH-Patator": {
-        'Flow Duration': 12113528.00,
-        'Total Length of Fwd Packets': 2008.00,
-        'Bwd Packet Length Max': 976.00,
-        'Bwd Packet Length Mean': 85.78,
-        'Bwd Packet Length Std': 220.24,
-        'Flow IAT Std': 630656.76,
-        'Flow IAT Max': 2384126.00,
-        'Fwd IAT Total': 10200000.00,
-        'Fwd IAT Std': 898939.77,
-        'Fwd IAT Max': 2401297.00,
-        'Max Packet Length': 976.00,
-        'Packet Length Mean': 88.02,
-        'Packet Length Std': 189.59,
-        'Packet Length Variance': 35944.47,
-        'FIN Flag Count': 0.00,
-        'Average Packet Size': 89.68,
-        'Avg Bwd Segment Size': 85.78,
-        'Idle Mean': 0.00,
-        'Idle Max': 0.00,
-        'Idle Min': 0.00,
-    },  # 2,979 rows used
+        'Idle Mean': 0.0,
+        'Idle Max': 0.0,
+        'Idle Min': 0.0,
+    },
 
     "DoS Hulk": {
-        'Flow Duration': 97415296.00,
-        'Total Length of Fwd Packets': 356.00,
-        'Bwd Packet Length Max': 5792.00,
+        'Flow Duration': 1878.0,
+        'Total Length of Fwd Packets': 382.0,
+        'Bwd Packet Length Max': 4355.0,
         'Bwd Packet Length Mean': 1932.50,
-        'Bwd Packet Length Std': 2179.55,
-        'Flow IAT Std': 26100000.00,
-        'Flow IAT Max': 97300000.00,
-        'Fwd IAT Total': 97400000.00,
-        'Fwd IAT Std': 37300000.00,
-        'Fwd IAT Max': 97300000.00,
-        'Max Packet Length': 5792.00,
-        'Packet Length Mean': 853.29,
-        'Packet Length Std': 1665.57,
-        'Packet Length Variance': 2774137.61,
-        'FIN Flag Count': 0.00,
-        'Average Packet Size': 918.92,
+        'Bwd Packet Length Std': 2182.47,
+        'Flow IAT Std': 229.13,
+        'Flow IAT Max': 577.0,
+        'Fwd IAT Total': 975.0,
+        'Fwd IAT Std': 265.17,
+        'Fwd IAT Max': 675.0,
+        'Max Packet Length': 4355.0,
+        'Packet Length Mean': 1197.70,
+        'Packet Length Std': 1886.33,
+        'Packet Length Variance': 3558249.79,
+        'FIN Flag Count': 0.0,
+        'Average Packet Size': 1330.78,
         'Avg Bwd Segment Size': 1932.50,
-        'Idle Mean': 85900000.00,
-        'Idle Max': 97300000.00,
-        'Idle Min': 85900000.00,
-    },  # 165,141 rows used
+        'Idle Mean': 0.0,
+        'Idle Max': 0.0,
+        'Idle Min': 0.0,
+    },
 
     "Bot": {
-        'Flow Duration': 54398.00,
-        'Total Length of Fwd Packets': 206.00,
-        'Bwd Packet Length Max': 128.00,
-        'Bwd Packet Length Mean': 7.37,
-        'Bwd Packet Length Std': 13.30,
-        'Flow IAT Std': 6076.75,
-        'Flow IAT Max': 52220.00,
-        'Fwd IAT Total': 54398.00,
-        'Fwd IAT Std': 13565.21,
-        'Fwd IAT Max': 53613.00,
-        'Max Packet Length': 194.00,
-        'Packet Length Mean': 31.14,
-        'Packet Length Std': 68.12,
-        'Packet Length Variance': 4640.46,
-        'FIN Flag Count': 0.00,
-        'Average Packet Size': 32.78,
-        'Avg Bwd Segment Size': 7.37,
-        'Idle Mean': 0.00,
-        'Idle Max': 0.00,
-        'Idle Min': 0.00,
-    },  # 1,474 rows used
-
+        'Flow Duration': 71485.0,
+        'Total Length of Fwd Packets': 6.0,
+        'Bwd Packet Length Max': 6.0,
+        'Bwd Packet Length Mean': 6.0,
+        'Bwd Packet Length Std': 0.0,
+        'Flow IAT Std': 27626.54,
+        'Flow IAT Max': 69327.50,
+        'Fwd IAT Total': 71485.0,
+        'Fwd IAT Std': 1703.77,
+        'Fwd IAT Max': 70689.0,
+        'Max Packet Length': 6.0,
+        'Packet Length Mean': 6.0,
+        'Packet Length Std': 3.21,
+        'Packet Length Variance': 10.29,
+        'FIN Flag Count': 0.0,
+        'Average Packet Size': 9.0,
+        'Avg Bwd Segment Size': 6.0,
+        'Idle Mean': 0.0,
+        'Idle Max': 0.0,
+        'Idle Min': 0.0,
+    },
 }
 
 
-# ─────────────────────────────────────────────────────────────
-# UI
-# ─────────────────────────────────────────────────────────────
 st.title("🛡️ Malicious Traffic Detection - IDS")
 st.markdown(
     f"Modèle : **Random Forest** | "
@@ -196,7 +166,6 @@ with st.expander("Voir la liste des features utilisées"):
 st.subheader("Prédiction manuelle")
 st.info("Choisissez un preset OU entrez vos propres valeurs")
 
-# Preset selector
 preset_name = st.selectbox(
     "Charger un preset d'attaque (optionnel)",
     list(PRESETS.keys()),
@@ -204,12 +173,6 @@ preset_name = st.selectbox(
 )
 preset = PRESETS[preset_name]
 
-# ─────────────────────────────────────────────────────────────
-# KEY FIX: embed preset_name in widget key.
-# When the preset changes, the widget keys change, so Streamlit
-# creates new widgets with the new default values instead of
-# reusing the stale session_state values from the previous preset.
-# ─────────────────────────────────────────────────────────────
 inputs = {}
 col1, col2 = st.columns(2)
 for i, feat in enumerate(selected):
@@ -223,9 +186,6 @@ for i, feat in enumerate(selected):
             key=f"input_{preset_name}_{feat}"
         )
 
-# ─────────────────────────────────────────────────────────────
-# Prediction
-# ─────────────────────────────────────────────────────────────
 if st.button("🔍 Prédire"):
     full_row = {f: 0.0 for f in all_feat}
     for f, v in inputs.items():
