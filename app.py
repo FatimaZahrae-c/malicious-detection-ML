@@ -4,7 +4,7 @@ import json
 import numpy as np
 import pandas as pd
 
-st.title("🛡️ Malicious Traffic Detection - IDS")
+st.title("Malicious Traffic Detection - IDS")
 
 
 @st.cache_resource
