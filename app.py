@@ -57,9 +57,7 @@ model, scaler, encoder, selected, all_feat = load_model()
 
 
 # ─────────────────────────────────────────────────────────────
-# Preset attack signatures (median values from CICIDS2017)
-# These let you quickly test that the model recognizes each class.
-# Replace these with your own median-computed values for best results.
+# Preset attack signatures (from CICIDS2017 dataset)
 # ─────────────────────────────────────────────────────────────
 PRESETS = {
     "— Manuel (tout à zéro) —": {f: 0.0 for f in selected},
@@ -88,8 +86,6 @@ PRESETS = {
     },
 
     "FTP-Patator": {
-        # Values for a representative (non-empty) FTP-Patator flow.
-        # The dataset's first row is degenerate — these are typical medians.
         'Flow Duration': 112000.0,
         'Total Length of Fwd Packets': 24.0,
         'Bwd Packet Length Max': 96.0,
@@ -175,16 +171,22 @@ with st.expander("Voir la liste des features utilisées"):
     st.write(selected)
 
 st.subheader("Prédiction manuelle")
-st.info("Entrez les valeurs brutes (non normalisées) de la connexion réseau")
+st.info("Choisissez un preset OU entrez vos propres valeurs")
 
 # Preset selector
 preset_name = st.selectbox(
     "Charger un preset d'attaque (optionnel)",
-    list(PRESETS.keys())
+    list(PRESETS.keys()),
+    key="preset_selector"
 )
 preset = PRESETS[preset_name]
 
-# Input fields — iterate in `selected` order so display matches training order
+# ─────────────────────────────────────────────────────────────
+# KEY FIX: embed preset_name in widget key.
+# When the preset changes, the widget keys change, so Streamlit
+# creates new widgets with the new default values instead of
+# reusing the stale session_state values from the previous preset.
+# ─────────────────────────────────────────────────────────────
 inputs = {}
 col1, col2 = st.columns(2)
 for i, feat in enumerate(selected):
@@ -195,36 +197,28 @@ for i, feat in enumerate(selected):
             feat,
             value=default_val,
             format="%.2f",
-            key=f"input_{feat}"
+            key=f"input_{preset_name}_{feat}"
         )
 
 # ─────────────────────────────────────────────────────────────
 # Prediction
 # ─────────────────────────────────────────────────────────────
 if st.button("🔍 Prédire"):
-    # 1. Build full 69-feature row in the EXACT order scaler expects
     full_row = {f: 0.0 for f in all_feat}
     for f, v in inputs.items():
         if f in full_row:
             full_row[f] = v
 
-    X_df = pd.DataFrame([full_row], columns=all_feat)  # order guaranteed
-
-    # 2. Scale
+    X_df = pd.DataFrame([full_row], columns=all_feat)
     X_scaled = scaler.transform(X_df)
     X_scaled_df = pd.DataFrame(X_scaled, columns=all_feat)
-
-    # 3. Select the 20 features IN THE ORDER `selected` defines
-    #    (this is critical — model was trained on this exact ordering)
     X_sel = X_scaled_df[selected].values
 
-    # 4. Predict
     pred  = model.predict(X_sel)[0]
     label = encoder.inverse_transform([pred])[0]
     proba = model.predict_proba(X_sel)[0]
     conf  = round(float(np.max(proba)) * 100, 1)
 
-    # 5. Display result
     if label == "BENIGN":
         st.markdown(f"""
         <div class="normal-box">
@@ -242,7 +236,6 @@ if st.button("🔍 Prédire"):
             </span>
         </div>""", unsafe_allow_html=True)
 
-    # 6. Top 5 probabilities
     st.markdown("---")
     st.subheader("Top 5 probabilités")
     class_labels = encoder.inverse_transform(model.classes_)
@@ -253,7 +246,6 @@ if st.button("🔍 Prédire"):
      .head(5).reset_index(drop=True)
     st.dataframe(proba_df, hide_index=True, use_container_width=True)
 
-    # 7. Debug info (optional — collapse if you don't want it)
     with st.expander("🔧 Debug (valeurs envoyées au modèle)"):
         debug_df = pd.DataFrame({
             'Feature': selected,
