@@ -34,7 +34,31 @@ h2, h3 { color: #7fb3d3 !important; }
     font-size: 1.2rem;
     font-weight: 700;
     margin: 10px 0;
+}/* Force full width */
+.block-container {
+    max-width: 100% !important;
+    padding-top: 1rem;
+    padding-left: 2rem;
+    padding-right: 2rem;
 }
+
+/* Full screen height */
+html, body, .stApp {
+    height: 100%;
+    width: 100%;
+    overflow-x: hidden;
+}
+
+/* Remove streamlit default spacing */
+section.main > div {
+    padding-top: 0rem;
+}
+
+/* Better dataframe rendering */
+[data-testid="stDataFrame"] {
+    width: 100% !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
