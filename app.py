@@ -384,7 +384,7 @@ PRESETS = {
 }
 
 
-st.title("🛡️ Malicious Traffic Detection - IDS")
+st.title(" Malicious Traffic Detection - IDS")
 st.markdown(
     f"Modèle : **Random Forest** | "
     f"Features : **{len(selected)}** | "
